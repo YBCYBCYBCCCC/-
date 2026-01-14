@@ -1,9 +1,10 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>IronLog 健身日志</title>
+  <title>Gyming己酩健身日志</title>
+  <link rel="apple-touch-icon" href="icon.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <script type="importmap">
     {
@@ -52,9 +53,8 @@
       GripVertical, Music, Layers, CheckSquare, Timer, Feather, Download, Upload, FileJson
     } from 'lucide-react';
 
-    // --- 模拟图表组件 (修改为通用组件，不含死数据逻辑) ---
+    // --- 图表组件 ---
     const SimpleLineChart = ({ data, color = "indigo", label = "数据" }) => {
-      // 过滤掉无效数据（undefined 或 null 或 空字符串），只保留数字
       const validData = data.filter(d => d !== '' && d !== null && !isNaN(d)).map(Number);
 
       if (!validData || validData.length < 2) return (
@@ -70,11 +70,9 @@
       return (
         <div className="h-32 flex items-end justify-between gap-1 pt-4 border-b border-gray-100 pb-2 px-2">
           {validData.map((val, i) => {
-            // 计算高度百分比，最低给 10% 高度
             const height = ((val - min) / range) * 70 + 20; 
             return (
               <div key={i} className="flex flex-col items-center flex-1 group relative">
-                 {/* Tooltip */}
                  <div className="absolute -top-6 text-[10px] font-bold text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity bg-white px-1 shadow-sm rounded">
                     {val}
                  </div>
@@ -154,7 +152,7 @@
       const [newExMaxWeight, setNewExMaxWeight] = useState('');
       const [newExSets, setNewExSets] = useState('4');
       const [newExReps, setNewExReps] = useState('12');
-      const [newExNote, setNewExNote] = useState(''); // 修复：这里之前是 = '' 语法错误，改为 useState
+      const [newExNote, setNewExNote] = useState('');
       const [showAddForm, setShowAddForm] = useState(false);
       const fileInputRef = useRef(null);
 
@@ -252,19 +250,18 @@
         updateLog('duration', isNaN(value) ? '' : value);
       }
       
-      // 拖拽函数 (占位，保持原样)
       const handleDragStart = (e, index) => {};
       const handleDragOver = (e, index) => {};
       const handleDragEnd = () => {};
 
-      // --- 数据处理函数 (新增) ---
+      // --- 数据处理函数 ---
       const exportData = () => {
         const data = { logs, exercises };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `ironlog_backup_${formatDateKey(new Date())}.json`;
+        a.download = `gyming_backup_${formatDateKey(new Date())}.json`;
         a.click();
         URL.revokeObjectURL(url);
       };
@@ -293,13 +290,10 @@
       };
 
       const getChartData = () => {
-        // 获取所有有记录的日期并排序
         const sortedDates = Object.keys(logs).sort((a, b) => new Date(a) - new Date(b));
-        // 取最近 10 条
         const recentDates = sortedDates.slice(-10);
-        
         return {
-            dates: recentDates.map(d => d.slice(5)), // 只显示月-日
+            dates: recentDates.map(d => d.slice(5)), 
             weights: recentDates.map(d => logs[d].weight),
             cardios: recentDates.map(d => logs[d].cardio)
         };
@@ -314,7 +308,7 @@
             {/* Header */}
             <div className="bg-gray-900 text-white p-4 pt-8 sticky top-0 z-20 shadow-md flex justify-between items-center">
               <div>
-                <h1 className="text-xl font-bold flex items-center gap-2"><Dumbbell className="text-red-500" /> IRON LOG</h1>
+                <h1 className="text-xl font-bold flex items-center gap-2"><Dumbbell className="text-red-500" /> Gyming己酩健身日志</h1>
                 <p className="text-xs text-gray-400">塑造更强的自己</p>
               </div>
               <button onClick={() => setShowTimer(!showTimer)} className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all shadow-lg ${timerRunning ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-800 text-gray-200 border border-gray-700'}`}>
@@ -359,10 +353,9 @@
                         const log = logs[k];
                         const isSelected = k === dateKey;
                         let cls = "text-gray-700 hover:bg-gray-100";
-                        // --- 状态颜色逻辑修改 ---
                         if (log?.status === 'trained') cls = "bg-red-500 text-white shadow-lg shadow-red-200 scale-105 font-bold";
                         else if (log?.status === 'rest') cls = "bg-emerald-400 text-white shadow-lg shadow-emerald-200 scale-105 font-bold";
-                        else if (log?.status === 'deload') cls = "bg-orange-400 text-white shadow-lg shadow-orange-200 scale-105 font-bold"; // 新增减载周样式
+                        else if (log?.status === 'deload') cls = "bg-orange-400 text-white shadow-lg shadow-orange-200 scale-105 font-bold";
                         
                         return (
                           <button key={day} onClick={() => setSelectedDate(d)} className={`aspect-square rounded-full flex items-center justify-center text-sm transition-all relative ${cls} ${isSelected ? 'ring-2 ring-gray-900 ring-offset-2 z-10' : ''}`}>
@@ -380,7 +373,6 @@
                       <div className="flex gap-2">
                         <button onClick={() => toggleStatus('trained')} className={`p-3 rounded-xl transition-all ${currentLog.status === 'trained' ? 'bg-red-500 text-white shadow-lg' : 'bg-gray-100 text-gray-400'}`}><Dumbbell className="w-5 h-5"/></button>
                         <button onClick={() => toggleStatus('rest')} className={`p-3 rounded-xl transition-all ${currentLog.status === 'rest' ? 'bg-emerald-400 text-white shadow-lg' : 'bg-gray-100 text-gray-400'}`}><CalendarIcon className="w-5 h-5"/></button>
-                        {/* 新增减载周按钮 */}
                         <button onClick={() => toggleStatus('deload')} className={`p-3 rounded-xl transition-all ${currentLog.status === 'deload' ? 'bg-orange-400 text-white shadow-lg' : 'bg-gray-100 text-gray-400'}`}><Feather className="w-5 h-5"/></button>
                       </div>
                     </div>
