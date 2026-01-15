@@ -79,7 +79,7 @@
       );
     };
 
-    // --- 初始数据 ---
+    // --- 初始数据 (已增加复合型和体态纠正) ---
     const INITIAL_EXERCISES = [
         { id: 101, name: '哑铃卧推', part: '胸部', maxWeight: '30', sets: '4', reps: '8-12', note: '' },
         { id: 102, name: '平板杠铃窄距卧推', part: '胸部', maxWeight: '60', sets: '4', reps: '8-12', note: '与肩同宽 下落到上腹部' },
@@ -101,8 +101,17 @@
         { id: 502, name: '负重箭步蹲', part: '腿部', maxWeight: '20', sets: '4', reps: '12', note: '箭步蹲站距：一次一个脚掌，下一次练腿两个脚掌，交替做。膝盖不要内扣' },
         { id: 503, name: '坐姿或俯身腿弯举', part: '腿部', maxWeight: '35', sets: '4', reps: '12', note: '' },
         { id: 504, name: '坐姿腿屈伸', part: '腿部', maxWeight: '40', sets: '4', reps: '12', note: '' },
+        // --- 新增动作 ---
+        { id: 601, name: '波比跳 (Burpee)', part: '复合型', maxWeight: '0', sets: '4', reps: '15', note: '全身燃脂' },
+        { id: 602, name: '壶铃甩摆 (Swing)', part: '复合型', maxWeight: '16', sets: '4', reps: '20', note: '髋部发力' },
+        { id: 701, name: '绳索面拉 (Face Pull)', part: '体态纠正', maxWeight: '15', sets: '4', reps: '15', note: '改善圆肩，针对后束和肩袖' },
+        { id: 702, name: '靠墙天使 (Wall Angel)', part: '体态纠正', maxWeight: '0', sets: '3', reps: '12', note: '腰背紧贴墙面' },
     ];
+    
+    // --- 初始日志 (增加数据以测试图表) ---
     const INITIAL_LOGS = {
+        '2025-11-26': { status: 'trained', title: '恢复训练', weight: 74.0, cardio: 30, duration: 1.0, exercises: [] },
+        '2025-11-27': { status: 'rest', title: '休息日', weight: 73.8, cardio: 0, duration: 0, exercises: [] },
         '2025-11-28': { status: 'trained', title: '胸部训练', weight: 73.5, cardio: 20, duration: 1.5, exercises: [{ id: 101, name: '哑铃卧推', sets: '4', reps: '8', weight: '30', completed: true }] }
     };
 
@@ -184,7 +193,8 @@
       const getGroupedExercises = () => {
         const groups = {};
         exercises.forEach(ex => { if (!groups[ex.part]) groups[ex.part] = []; groups[ex.part].push(ex); });
-        return ['胸部', '背部', '肩部', '手臂', '腿部', '其他'].map(part => ({ part, list: groups[part] || [] })).filter(g => g.list.length > 0);
+        // --- 核心修改：增加了 '复合型' 和 '体态纠正' 的显示顺序 ---
+        return ['胸部', '背部', '肩部', '手臂', '腿部', '复合型', '体态纠正', '其他'].map(part => ({ part, list: groups[part] || [] })).filter(g => g.list.length > 0);
       };
       const handleAddNewExercise = () => {
         if (!newExName || !newExPart || !newExSets || !newExReps) { alert('请填写完整信息！'); return; }
@@ -317,7 +327,9 @@
                       <h3 className="font-bold text-indigo-700 mb-3 flex justify-between items-center">添加新动作<button onClick={() => setShowAddForm(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4"/></button></h3>
                       <div className="space-y-3">
                           <input type="text" placeholder="动作名称" value={newExName} onChange={(e) => setNewExName(e.target.value)} className="w-full p-2 border border-gray-200 rounded-lg text-sm" />
-                          <select value={newExPart} onChange={(e) => setNewExPart(e.target.value)} className="w-full p-2 border border-gray-200 rounded-lg text-sm">{['胸部', '背部', '肩部', '手臂', '腿部', '其他'].map(part => <option key={part} value={part}>{part}</option>)}</select>
+                          <select value={newExPart} onChange={(e) => setNewExPart(e.target.value)} className="w-full p-2 border border-gray-200 rounded-lg text-sm">
+                              {['胸部', '背部', '肩部', '手臂', '腿部', '复合型', '体态纠正', '其他'].map(part => <option key={part} value={part}>{part}</option>)}
+                          </select>
                           <div className="grid grid-cols-3 gap-2"><input type="text" placeholder="组数" value={newExSets} onChange={(e) => setNewExSets(e.target.value)} className="p-2 border border-gray-200 rounded-lg text-sm" /><input type="text" placeholder="次数" value={newExReps} onChange={(e) => setNewExReps(e.target.value)} className="p-2 border border-gray-200 rounded-lg text-sm" /><input type="number" placeholder="重量" value={newExMaxWeight} onChange={(e) => setNewExMaxWeight(e.target.value)} className="p-2 border border-gray-200 rounded-lg text-sm" /></div>
                           <textarea placeholder="备注" value={newExNote} onChange={(e) => setNewExNote(e.target.value)} className="w-full p-2 border border-gray-200 rounded-lg text-sm h-16" />
                           <button onClick={handleAddNewExercise} className="w-full bg-indigo-600 text-white p-2 rounded-lg font-bold hover:bg-indigo-700 transition-colors">+ 添加到我的动作库</button>
