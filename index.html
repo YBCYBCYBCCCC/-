@@ -39,7 +39,7 @@
         font-weight: bold;
         z-index: 10;
     }
-    /* 隐藏滚动条但保留功能 (提升美观度) */
+    /* 隐藏滚动条但保留功能 */
     .no-scrollbar::-webkit-scrollbar {
         display: none;
     }
@@ -58,7 +58,8 @@
     import { 
       Calendar as CalendarIcon, Dumbbell, BookOpen, TrendingUp, ChevronLeft, ChevronRight, 
       Plus, X, Info, Clock, Play, Pause, RotateCcw, CheckCircle2, Circle, ArrowLeft, 
-      GripVertical, Music, Layers, CheckSquare, Timer, Feather, Download, Upload, FileJson
+      GripVertical, Music, Layers, CheckSquare, Timer, Feather, Download, Upload, FileJson,
+      FolderHeart, Save, Trash2
     } from 'lucide-react';
 
     // --- 图表组件 ---
@@ -97,31 +98,26 @@
 
     // --- 初始数据 ---
     const INITIAL_EXERCISES = [
-        // --- 胸部 ---
         { id: 101, name: '哑铃卧推', part: '胸部', maxWeight: '30', sets: '4', reps: '8-12', note: '' },
         { id: 102, name: '平板杠铃窄距卧推', part: '胸部', maxWeight: '60', sets: '4', reps: '8-12', note: '与肩同宽 下落到上腹部' },
         { id: 103, name: '窄距俯卧撑', part: '胸部', maxWeight: '0', sets: '4', reps: '力竭', note: '核心收紧' },
         { id: 104, name: '坐姿夹胸', part: '胸部', maxWeight: '40', sets: '4', reps: '12-15', note: '顶峰收缩' },
         
-        // --- 背部 ---
         { id: 201, name: '杠铃划船 / 坐姿划船', part: '背部', maxWeight: '60', sets: '4', reps: '10', note: '卧推握距' },
         { id: 202, name: '对握窄距高位下拉', part: '背部', maxWeight: '50', sets: '4', reps: '10-12', note: '肩宽或窄与肩' },
         { id: 203, name: '对握宽距高位下拉', part: '背部', maxWeight: '50', sets: '4', reps: '10-12', note: '卧推握距或宽与肩' },
         { id: 204, name: '直臂下压', part: '背部', maxWeight: '25', sets: '4', reps: '15', note: '感受背阔肌发力' },
 
-        // --- 肩部 ---
         { id: 301, name: '哑铃提拉 (中后束)', part: '肩部', maxWeight: '15', sets: '4', reps: '12', note: '针对中后束' },
         { id: 302, name: '反向飞鸟 (后束)', part: '肩部', maxWeight: '10', sets: '4', reps: '15', note: '针对后束' },
         { id: 303, name: '哑铃提拉 (中束)', part: '肩部', maxWeight: '15', sets: '4', reps: '12', note: '针对中束' },
         { id: 304, name: '侧平举', part: '肩部', maxWeight: '10', sets: '6', reps: '15', note: '哑铃不要超过肩膀高度' },
 
-        // --- 手臂 ---
         { id: 401, name: '哑铃窄距二头弯举', part: '手臂', maxWeight: '15', sets: '4', reps: '12', note: '🔥 超级组：建议与三头颈后臂屈伸连着做' },
         { id: 402, name: '三头颈后臂屈伸', part: '手臂', maxWeight: '20', sets: '4', reps: '12', note: '🔥 超级组：建议与二头弯举连着做' },
         { id: 403, name: '哑铃垂式弯举', part: '手臂', maxWeight: '15', sets: '4', reps: '12', note: '🔥 超级组：建议与平板凳臂屈伸连着做' },
         { id: 404, name: '平板凳坐姿臂屈伸', part: '手臂', maxWeight: '0', sets: '4', reps: '15', note: '腰背直立贴住凳子，直上直下，下落到大臂跟地面水平。🔥 建议与垂式弯举连着做' },
 
-        // --- 腿部 ---
         { id: 501, name: '传统硬拉', part: '腿部', maxWeight: '100', sets: '5', reps: '5', note: '' },
         { id: 502, name: '负重箭步蹲', part: '腿部', maxWeight: '20', sets: '4', reps: '12', note: '箭步蹲站距：一次一个脚掌，下一次练腿两个脚掌，交替做。膝盖不要内扣' },
         { id: 503, name: '坐姿或俯身腿弯举', part: '腿部', maxWeight: '35', sets: '4', reps: '12', note: '' },
@@ -147,6 +143,11 @@
       const [logs, setLogs] = useState(() => {
         try { return JSON.parse(localStorage.getItem('ironlog_logs')) || INITIAL_LOGS; } catch (e) { return INITIAL_LOGS; }
       });
+      // 新增：组合(Routine)状态
+      const [routines, setRoutines] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('ironlog_routines')) || []; } catch (e) { return []; }
+      });
+
       const [selectedDate, setSelectedDate] = useState(new Date());
       const [currentMonth, setCurrentMonth] = useState(new Date());
       const [selectedForSession, setSelectedForSession] = useState([]);
@@ -168,6 +169,7 @@
       // 自动保存
       useEffect(() => { localStorage.setItem('ironlog_exercises', JSON.stringify(exercises)); }, [exercises]);
       useEffect(() => { localStorage.setItem('ironlog_logs', JSON.stringify(logs)); }, [logs]);
+      useEffect(() => { localStorage.setItem('ironlog_routines', JSON.stringify(routines)); }, [routines]);
 
       // 计时器逻辑
       useEffect(() => {
@@ -202,8 +204,9 @@
         if (selectedForSession.length === 0) return;
         const newExs = selectedForSession.map(id => {
           const master = exercises.find(e => e.id === id);
+          if (!master) return null;
           return { id: master.id, name: master.name, sets: master.sets, reps: master.reps, weight: master.maxWeight, completed: false };
-        });
+        }).filter(Boolean);
         updateLog('exercises', [...(currentLog.exercises || []), ...newExs]);
         if (currentLog.status !== 'trained') updateLog('status', 'trained');
         setSelectedForSession([]);
@@ -223,6 +226,34 @@
         const allSelected = groupIds.every(id => selectedForSession.includes(id));
         setSelectedForSession(prev => allSelected ? prev.filter(id => !groupIds.includes(id)) : [...prev, ...groupIds.filter(id => !prev.includes(id))]);
       };
+
+      // --- 组合功能逻辑 ---
+      const handleSaveRoutine = () => {
+        if (selectedForSession.length === 0) return;
+        const name = prompt("给这个训练组合起个名字 (例如: 三分化-推胸日)");
+        if (!name) return;
+        const newRoutine = {
+          id: Date.now(),
+          name,
+          exerciseIds: [...selectedForSession]
+        };
+        setRoutines(prev => [...prev, newRoutine]);
+        alert(`组合 "${name}" 已保存！下次点击它即可一键选择。`);
+      };
+
+      const handleLoadRoutine = (routine) => {
+        // 合并去重
+        const newSelection = [...new Set([...selectedForSession, ...routine.exerciseIds])];
+        setSelectedForSession(newSelection);
+      };
+
+      const handleDeleteRoutine = (e, id) => {
+        e.stopPropagation(); // 防止触发点击
+        if(confirm('确定删除这个组合吗？')) {
+            setRoutines(prev => prev.filter(r => r.id !== id));
+        }
+      };
+      // --------------------
 
       const getGroupedExercises = () => {
         const groups = {};
@@ -262,9 +293,8 @@
       const handleDragOver = (e, index) => {};
       const handleDragEnd = () => {};
 
-      // --- 数据处理函数 ---
       const exportData = () => {
-        const data = { logs, exercises };
+        const data = { logs, exercises, routines }; // 导出也包含 routines
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -285,6 +315,7 @@
                     if(confirm(`检测到备份文件。\n包含 ${Object.keys(data.logs).length} 条训练记录。\n是否覆盖当前数据？`)) {
                         setLogs(data.logs);
                         setExercises(data.exercises);
+                        if(data.routines) setRoutines(data.routines); // 导入 routines
                         alert('数据恢复成功！');
                     }
                 } else {
@@ -312,7 +343,6 @@
 
       return (
         <div className="min-h-screen bg-gray-50 flex justify-center font-sans text-gray-800">
-          {/* 修改点：这里改为 h-screen 和 overflow-hidden，让APP容器高度固定为屏幕高度，不随内容撑开 */}
           <div className="w-full max-w-md bg-white h-screen shadow-2xl relative flex flex-col overflow-hidden">
             {/* Header */}
             <div className="bg-gray-900 text-white p-4 pt-8 shrink-0 z-20 shadow-md flex justify-between items-center">
@@ -342,7 +372,7 @@
               </div>
             )}
 
-            {/* Content: 增加 no-scrollbar 类美化滚动 */}
+            {/* Content */}
             <div className="flex-1 overflow-y-auto pb-24 no-scrollbar">
               {activeTab === 'calendar' && (
                 <div className="p-4 space-y-6">
@@ -432,10 +462,33 @@
 
               {activeTab === 'library' && (
                 <div className="p-4 pb-32">
-                  <div className="flex items-center gap-2 mb-6">
+                  <div className="flex items-center gap-2 mb-4">
                     <button onClick={() => setActiveTab('calendar')} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft className="w-5 h-5 text-gray-600"/></button>
                     <div><h2 className="text-2xl font-bold text-gray-800">动作库</h2><p className="text-sm text-gray-500">已选 {selectedForSession.length} 个动作</p></div>
                   </div>
+
+                  {/* --- 新增功能区：我的训练预设 (Routines) --- */}
+                  <div className="mb-6">
+                    <h3 className="text-sm font-bold text-gray-500 mb-2 flex items-center gap-1"><FolderHeart className="w-4 h-4"/> 我的训练预设 (点击即可选择)</h3>
+                    <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+                      {/* 新建提示卡片 */}
+                      {routines.length === 0 && (
+                         <div className="shrink-0 w-48 bg-gray-50 border border-dashed border-gray-300 rounded-xl p-3 flex flex-col items-center justify-center text-gray-400 text-xs gap-1">
+                            <span>👇 先选中几个动作</span>
+                            <span>然后点底部的“存为组合”</span>
+                         </div>
+                      )}
+                      
+                      {routines.map(routine => (
+                        <div key={routine.id} onClick={() => handleLoadRoutine(routine)} className="shrink-0 w-32 bg-indigo-50 border border-indigo-100 rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer group active:scale-95">
+                           <button onClick={(e) => handleDeleteRoutine(e, routine.id)} className="absolute top-1 right-1 text-indigo-300 hover:text-red-500 p-1"><Trash2 className="w-3 h-3"/></button>
+                           <div className="font-bold text-indigo-900 text-sm truncate mb-1">{routine.name}</div>
+                           <div className="text-[10px] text-indigo-500">{routine.exerciseIds.length} 个动作</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* ------------------------------------------- */}
                   
                   {/* 新增动作表单 */}
                   <div className={`bg-white p-4 rounded-xl shadow-lg border border-indigo-100 mb-6 ${showAddForm ? 'block' : 'hidden'}`}>
@@ -495,7 +548,19 @@
                     })}
                   </div>
                   
-                  {selectedForSession.length > 0 && <div className="fixed bottom-24 left-0 right-0 px-6 z-30 flex justify-center"><button onClick={commitSelectionToDay} className="bg-indigo-600 text-white shadow-xl px-8 py-4 rounded-full font-bold flex gap-2">确认添加 {selectedForSession.length} 个动作 <ChevronRight className="w-5 h-5"/></button></div>}
+                  {/* 悬浮操作栏：包含【存为组合】和【确认添加】 */}
+                  {selectedForSession.length > 0 && (
+                    <div className="fixed bottom-24 left-0 right-0 px-4 z-30 flex gap-2 justify-center">
+                        {/* 存为组合按钮 */}
+                        <button onClick={handleSaveRoutine} className="bg-gray-800 text-white shadow-xl px-4 py-4 rounded-full font-bold flex items-center gap-2">
+                           <Save className="w-5 h-5"/>
+                        </button>
+                        {/* 确认添加按钮 */}
+                        <button onClick={commitSelectionToDay} className="flex-1 max-w-xs bg-indigo-600 text-white shadow-xl px-6 py-4 rounded-full font-bold flex items-center justify-center gap-2">
+                            确认添加 {selectedForSession.length} 个动作 <ChevronRight className="w-5 h-5"/>
+                        </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -534,7 +599,7 @@
               )}
             </div>
 
-            {/* Bottom Nav: 放在 flex 容器最底部，自动会被固定在屏幕下方 */}
+            {/* Bottom Nav */}
             <div className="w-full bg-white border-t border-gray-100 px-6 py-4 flex justify-between items-center z-20 shrink-0">
               <button onClick={() => setActiveTab('calendar')} className={`flex flex-col items-center gap-1 ${activeTab === 'calendar' ? 'text-gray-900' : 'text-gray-400'}`}><CalendarIcon className="w-6 h-6"/><span className="text-[10px] font-medium">日历</span></button>
               <button onClick={() => setActiveTab('library')} className={`flex flex-col items-center gap-1 ${activeTab === 'library' ? 'text-gray-900' : 'text-gray-400'}`}><BookOpen className="w-6 h-6"/><span className="text-[10px] font-medium">动作库</span></button>
