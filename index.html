@@ -50,7 +50,7 @@
       Calendar as CalendarIcon, Dumbbell, BookOpen, TrendingUp, ChevronLeft, ChevronRight, 
       Plus, X, Info, Clock, Play, Pause, RotateCcw, CheckCircle2, Circle, ArrowLeft, 
       GripVertical, Music, Layers, CheckSquare, Timer, Feather, Download, Upload, FileJson,
-      FolderHeart, Save, Trash2
+      FolderHeart, Save, Trash2, Pencil, RefreshCw
     } from 'lucide-react';
 
     // --- 混合架构防变形趋势图 ---
@@ -125,11 +125,8 @@
 
     // --- 初始数据 ---
     const INITIAL_EXERCISES = [
-        // --- 新增：热身 ---
         { id: 801, name: '跑步机坡度走', part: '热身', maxWeight: '0', sets: '1', reps: '10min', note: '心率提升到120左右' },
         { id: 802, name: '肩关节环绕', part: '热身', maxWeight: '0', sets: '2', reps: '15', note: '活动肩袖' },
-        
-        // --- 原有动作 ---
         { id: 101, name: '哑铃卧推', part: '胸部', maxWeight: '30', sets: '4', reps: '8-12', note: '' },
         { id: 102, name: '平板杠铃窄距卧推', part: '胸部', maxWeight: '60', sets: '4', reps: '8-12', note: '与肩同宽 下落到上腹部' },
         { id: 103, name: '窄距俯卧撑', part: '胸部', maxWeight: '0', sets: '4', reps: '力竭', note: '核心收紧' },
@@ -154,7 +151,6 @@
         { id: 701, name: '绳索面拉 (Face Pull)', part: '体态纠正', maxWeight: '15', sets: '4', reps: '15', note: '改善圆肩' },
     ];
     
-    // --- 初始日志 ---
     const INITIAL_LOGS = {
         '2025-11-25': { status: 'trained', title: '初始记录', weight: 74.5, cardio: 0, duration: 1.0, exercises: [] },
         '2025-11-26': { status: 'trained', title: '恢复训练', weight: 74.0, cardio: 30, duration: 1.0, exercises: [] },
@@ -174,6 +170,8 @@
       const [timerRunning, setTimerRunning] = useState(false);
       const [timeLeft, setTimeLeft] = useState(60); 
       const [totalTime, setTotalTime] = useState(60); 
+      
+      // 表单状态
       const [newExName, setNewExName] = useState('');
       const [newExPart, setNewExPart] = useState('胸部'); 
       const [newExMaxWeight, setNewExMaxWeight] = useState('');
@@ -181,6 +179,8 @@
       const [newExReps, setNewExReps] = useState('12');
       const [newExNote, setNewExNote] = useState('');
       const [showAddForm, setShowAddForm] = useState(false);
+      const [editingId, setEditingId] = useState(null); // 新增：正在编辑的动作ID
+      
       const fileInputRef = useRef(null);
 
       useEffect(() => { localStorage.setItem('ironlog_exercises', JSON.stringify(exercises)); }, [exercises]);
@@ -240,14 +240,48 @@
       const getGroupedExercises = () => {
         const groups = {};
         exercises.forEach(ex => { if (!groups[ex.part]) groups[ex.part] = []; groups[ex.part].push(ex); });
-        // --- 排序: 热身在最前，复合/体态在最后 ---
         return ['热身', '胸部', '背部', '肩部', '手臂', '腿部', '复合型', '体态纠正', '其他'].map(part => ({ part, list: groups[part] || [] })).filter(g => g.list.length > 0);
       };
-      const handleAddNewExercise = () => {
+
+      // --- 添加/编辑 动作逻辑 ---
+      const handleSaveExercise = () => {
         if (!newExName || !newExPart || !newExSets || !newExReps) { alert('请填写完整信息！'); return; }
-        setExercises(prev => [...prev, { id: Date.now(), name: newExName, part: newExPart, maxWeight: newExMaxWeight || '0', sets: newExSets, reps: newExReps, note: newExNote }]);
+        
+        if (editingId) {
+            // 编辑模式
+            setExercises(prev => prev.map(ex => ex.id === editingId ? {
+                ...ex,
+                name: newExName, part: newExPart, maxWeight: newExMaxWeight || '0', sets: newExSets, reps: newExReps, note: newExNote
+            } : ex));
+            setEditingId(null);
+        } else {
+            // 新增模式
+            setExercises(prev => [...prev, { id: Date.now(), name: newExName, part: newExPart, maxWeight: newExMaxWeight || '0', sets: newExSets, reps: newExReps, note: newExNote }]);
+        }
         setShowAddForm(false); setNewExName(''); setNewExMaxWeight(''); setNewExNote('');
       };
+
+      const handleEditExercise = (e, ex) => {
+          e.stopPropagation(); // 阻止触发选择
+          setNewExName(ex.name);
+          setNewExPart(ex.part);
+          setNewExMaxWeight(ex.maxWeight);
+          setNewExSets(ex.sets);
+          setNewExReps(ex.reps);
+          setNewExNote(ex.note || '');
+          setEditingId(ex.id);
+          setShowAddForm(true);
+      };
+
+      const handleDeleteExercise = (e, id) => {
+          e.stopPropagation(); // 阻止触发选择
+          if(confirm('确定要删除这个动作吗？此操作不可恢复。')) {
+              setExercises(prev => prev.filter(ex => ex.id !== id));
+              // 如果删除了选中的动作，也要从选中列表中移除
+              setSelectedForSession(prev => prev.filter(sid => sid !== id));
+          }
+      };
+
       const handleDurationChange = (e) => { const value = parseFloat(e.target.value); updateLog('duration', isNaN(value) ? '' : value); }
       const handleDragStart = (e, index) => {}; const handleDragOver = (e, index) => {}; const handleDragEnd = () => {};
 
@@ -375,20 +409,24 @@
                   </div>
                   
                   <div className={`bg-white p-4 rounded-xl shadow-lg border border-indigo-100 mb-6 ${showAddForm ? 'block' : 'hidden'}`}>
-                      <h3 className="font-bold text-indigo-700 mb-3 flex justify-between items-center">添加新动作<button onClick={() => setShowAddForm(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4"/></button></h3>
+                      <h3 className="font-bold text-indigo-700 mb-3 flex justify-between items-center">
+                          {editingId ? '编辑动作' : '添加新动作'}
+                          <button onClick={() => {setShowAddForm(false); setEditingId(null); setNewExName('');}} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4"/></button>
+                      </h3>
                       <div className="space-y-3">
                           <input type="text" placeholder="动作名称" value={newExName} onChange={(e) => setNewExName(e.target.value)} className="w-full p-2 border border-gray-200 rounded-lg text-sm" />
-                          {/* 新增: 热身选项 */}
                           <select value={newExPart} onChange={(e) => setNewExPart(e.target.value)} className="w-full p-2 border border-gray-200 rounded-lg text-sm">
                               {['热身', '胸部', '背部', '肩部', '手臂', '腿部', '复合型', '体态纠正', '其他'].map(part => <option key={part} value={part}>{part}</option>)}
                           </select>
                           <div className="grid grid-cols-3 gap-2"><input type="text" placeholder="组数" value={newExSets} onChange={(e) => setNewExSets(e.target.value)} className="p-2 border border-gray-200 rounded-lg text-sm" /><input type="text" placeholder="次数" value={newExReps} onChange={(e) => setNewExReps(e.target.value)} className="p-2 border border-gray-200 rounded-lg text-sm" /><input type="number" placeholder="重量" value={newExMaxWeight} onChange={(e) => setNewExMaxWeight(e.target.value)} className="p-2 border border-gray-200 rounded-lg text-sm" /></div>
                           <textarea placeholder="备注" value={newExNote} onChange={(e) => setNewExNote(e.target.value)} className="w-full p-2 border border-gray-200 rounded-lg text-sm h-16" />
-                          <button onClick={handleAddNewExercise} className="w-full bg-indigo-600 text-white p-2 rounded-lg font-bold hover:bg-indigo-700 transition-colors">+ 添加到我的动作库</button>
+                          <button onClick={handleSaveExercise} className={`w-full text-white p-2 rounded-lg font-bold transition-colors ${editingId ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
+                              {editingId ? '💾 保存修改' : '+ 添加到我的动作库'}
+                          </button>
                       </div>
                   </div>
                   
-                  <button onClick={() => setShowAddForm(prev => !prev)} className={`w-full p-3 rounded-xl font-bold text-sm mb-4 transition-colors ${showAddForm ? 'bg-red-500 text-white' : 'bg-indigo-500 text-white hover:bg-indigo-600'}`}>{showAddForm ? '隐藏添加表单' : '+ 创建新动作'}</button>
+                  <button onClick={() => {setShowAddForm(prev => !prev); setEditingId(null); setNewExName('');}} className={`w-full p-3 rounded-xl font-bold text-sm mb-4 transition-colors ${showAddForm ? 'bg-red-500 text-white' : 'bg-indigo-500 text-white hover:bg-indigo-600'}`}>{showAddForm ? '隐藏表单' : '+ 创建新动作'}</button>
 
                   <div className="space-y-6">
                     {getGroupedExercises().map(group => {
@@ -402,7 +440,18 @@
                               const isSelected = selectedForSession.includes(ex.id);
                               return (
                                 <div key={ex.id} className={`rounded-xl border cursor-pointer p-4 ${isSelected ? 'bg-indigo-50 border-indigo-500' : 'bg-white border-gray-100'}`} onClick={() => toggleSelection(ex.id)}>
-                                  <div className="flex items-center justify-between"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${isSelected ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-400'}`}>{isSelected ? <CheckCircle2 className="w-6 h-6"/> : ex.name[0]}</div><div><h3 className={`font-bold ${isSelected ? 'text-indigo-900' : 'text-gray-800'}`}>{ex.name}</h3><span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{ex.sets}x{ex.reps}</span></div></div>{isSelected ? <div className="w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center"><CheckCircle2 className="w-4 h-4 text-white"/></div> : <Circle className="w-6 h-6 text-gray-300"/>}</div>
+                                  <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-3">
+                                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${isSelected ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-400'}`}>{isSelected ? <CheckCircle2 className="w-6 h-6"/> : ex.name[0]}</div>
+                                          <div><h3 className={`font-bold ${isSelected ? 'text-indigo-900' : 'text-gray-800'}`}>{ex.name}</h3><span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{ex.sets}x{ex.reps}</span></div>
+                                      </div>
+                                      
+                                      {/* 编辑/删除按钮区 (阻止冒泡) */}
+                                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                          <button onClick={(e) => handleEditExercise(e, ex)} className="p-2 text-gray-300 hover:text-blue-500 bg-gray-50 rounded-lg"><Pencil className="w-4 h-4"/></button>
+                                          <button onClick={(e) => handleDeleteExercise(e, ex.id)} className="p-2 text-gray-300 hover:text-red-500 bg-gray-50 rounded-lg"><Trash2 className="w-4 h-4"/></button>
+                                      </div>
+                                  </div>
                                   {ex.note && <div className="mt-2 text-xs text-gray-500">💡 {ex.note}</div>}
                                 </div>
                               )
