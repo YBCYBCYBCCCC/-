@@ -53,7 +53,7 @@
       FolderHeart, Save, Trash2
     } from 'lucide-react';
 
-    // --- 全新升级：混合架构防变形趋势图 ---
+    // --- 混合架构防变形趋势图 ---
     const TrendChart = ({ data, labels, color = "#3b82f6", label = "数据" }) => {
       const cleanData = data.map((d, i) => ({ val: Number(d), label: labels[i] }))
                             .filter(item => !isNaN(item.val) && item.val !== 0 && item.val !== null);
@@ -69,12 +69,10 @@
       const max = Math.max(...values);
       const min = Math.min(...values);
       const range = max - min || 1;
-      // 增加 10% 的上下边距，防止点贴着边缘
       const padding = range * 0.1;
       const displayMin = min - padding;
       const displayRange = (max + padding) - displayMin;
 
-      // 生成 SVG 路径坐标 (0-100)
       const points = cleanData.map((d, i) => {
         const x = (i / (cleanData.length - 1)) * 100;
         const y = 100 - ((d.val - displayMin) / displayRange) * 100;
@@ -91,14 +89,12 @@
             </div>
             
             <div className="relative h-48 w-full">
-                {/* 1. 背景网格 */}
                 <div className="absolute inset-0 flex flex-col justify-between text-[10px] text-gray-300 pointer-events-none">
                     <div className="border-b border-gray-50 h-full w-full"></div>
                     <div className="border-b border-gray-50 h-full w-full"></div>
                     <div className="border-b border-gray-50 h-full w-full"></div>
                 </div>
 
-                {/* 2. SVG 线条层 (允许变形拉伸) */}
                 <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full overflow-visible z-0">
                     <defs>
                         <linearGradient id={`grad-${color}`} x1="0%" y1="0%" x2="0%" y2="100%">
@@ -110,23 +106,18 @@
                     <polyline points={points} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
 
-                {/* 3. HTML 点与数据层 (绝对定位，防止圆点变形) */}
                 {cleanData.map((d, i) => {
                     const left = (i / (cleanData.length - 1)) * 100;
                     const bottom = ((d.val - displayMin) / displayRange) * 100;
                     return (
                         <div key={i} className="absolute flex flex-col items-center group" style={{ left: `${left}%`, bottom: `${bottom}%`, transform: 'translate(-50%, 50%)' }}>
-                            {/* 数值 (默认显示) */}
                             <span className="mb-2 text-[10px] font-bold text-gray-600 bg-white/80 px-1 rounded shadow-sm backdrop-blur-sm transform -translate-y-2">{d.val}</span>
-                            {/* 圆点 */}
                             <div className="w-3 h-3 bg-white border-2 rounded-full shadow-sm z-10 transition-transform group-hover:scale-125" style={{ borderColor: color }}></div>
-                            {/* 日期 (放在底部，避免遮挡) */}
                             <div className="absolute top-6 text-[9px] text-gray-400 whitespace-nowrap font-medium">{d.label}</div>
                         </div>
                     );
                 })}
             </div>
-            {/* 底部留白给日期 */}
             <div className="h-6"></div> 
         </div>
       );
@@ -134,6 +125,11 @@
 
     // --- 初始数据 ---
     const INITIAL_EXERCISES = [
+        // --- 新增：热身 ---
+        { id: 801, name: '跑步机坡度走', part: '热身', maxWeight: '0', sets: '1', reps: '10min', note: '心率提升到120左右' },
+        { id: 802, name: '肩关节环绕', part: '热身', maxWeight: '0', sets: '2', reps: '15', note: '活动肩袖' },
+        
+        // --- 原有动作 ---
         { id: 101, name: '哑铃卧推', part: '胸部', maxWeight: '30', sets: '4', reps: '8-12', note: '' },
         { id: 102, name: '平板杠铃窄距卧推', part: '胸部', maxWeight: '60', sets: '4', reps: '8-12', note: '与肩同宽 下落到上腹部' },
         { id: 103, name: '窄距俯卧撑', part: '胸部', maxWeight: '0', sets: '4', reps: '力竭', note: '核心收紧' },
@@ -244,7 +240,8 @@
       const getGroupedExercises = () => {
         const groups = {};
         exercises.forEach(ex => { if (!groups[ex.part]) groups[ex.part] = []; groups[ex.part].push(ex); });
-        return ['胸部', '背部', '肩部', '手臂', '腿部', '复合型', '体态纠正', '其他'].map(part => ({ part, list: groups[part] || [] })).filter(g => g.list.length > 0);
+        // --- 排序: 热身在最前，复合/体态在最后 ---
+        return ['热身', '胸部', '背部', '肩部', '手臂', '腿部', '复合型', '体态纠正', '其他'].map(part => ({ part, list: groups[part] || [] })).filter(g => g.list.length > 0);
       };
       const handleAddNewExercise = () => {
         if (!newExName || !newExPart || !newExSets || !newExReps) { alert('请填写完整信息！'); return; }
@@ -381,8 +378,9 @@
                       <h3 className="font-bold text-indigo-700 mb-3 flex justify-between items-center">添加新动作<button onClick={() => setShowAddForm(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4"/></button></h3>
                       <div className="space-y-3">
                           <input type="text" placeholder="动作名称" value={newExName} onChange={(e) => setNewExName(e.target.value)} className="w-full p-2 border border-gray-200 rounded-lg text-sm" />
+                          {/* 新增: 热身选项 */}
                           <select value={newExPart} onChange={(e) => setNewExPart(e.target.value)} className="w-full p-2 border border-gray-200 rounded-lg text-sm">
-                              {['胸部', '背部', '肩部', '手臂', '腿部', '复合型', '体态纠正', '其他'].map(part => <option key={part} value={part}>{part}</option>)}
+                              {['热身', '胸部', '背部', '肩部', '手臂', '腿部', '复合型', '体态纠正', '其他'].map(part => <option key={part} value={part}>{part}</option>)}
                           </select>
                           <div className="grid grid-cols-3 gap-2"><input type="text" placeholder="组数" value={newExSets} onChange={(e) => setNewExSets(e.target.value)} className="p-2 border border-gray-200 rounded-lg text-sm" /><input type="text" placeholder="次数" value={newExReps} onChange={(e) => setNewExReps(e.target.value)} className="p-2 border border-gray-200 rounded-lg text-sm" /><input type="number" placeholder="重量" value={newExMaxWeight} onChange={(e) => setNewExMaxWeight(e.target.value)} className="p-2 border border-gray-200 rounded-lg text-sm" /></div>
                           <textarea placeholder="备注" value={newExNote} onChange={(e) => setNewExNote(e.target.value)} className="w-full p-2 border border-gray-200 rounded-lg text-sm h-16" />
