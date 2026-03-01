@@ -50,7 +50,7 @@
       Calendar as CalendarIcon, Dumbbell, BookOpen, TrendingUp, ChevronLeft, ChevronRight, 
       Plus, X, Info, Clock, Play, Pause, RotateCcw, CheckCircle2, Circle, ArrowLeft, 
       GripVertical, Music, Layers, CheckSquare, Timer, Feather, Download, Upload, FileJson,
-      FolderHeart, Save, Trash2, Pencil, RefreshCw, Ruler
+      FolderHeart, Save, Trash2, Pencil, RefreshCw, Ruler, Share
     } from 'lucide-react';
 
     // --- 混合架构防变形趋势图 ---
@@ -152,10 +152,10 @@
     ];
     
     const INITIAL_LOGS = {
-        '2025-11-25': { status: 'trained', title: '初始记录', weight: 74.5, waist: 88, cardio: 0, duration: 1.0, exercises: [] },
-        '2025-11-26': { status: 'trained', title: '恢复训练', weight: 74.0, waist: 87.5, cardio: 30, duration: 1.0, exercises: [] },
-        '2025-11-27': { status: 'rest', title: '休息日', weight: 73.8, waist: 87, cardio: 0, duration: 0, exercises: [] },
-        '2025-11-28': { status: 'trained', title: '胸部训练', weight: 73.5, waist: 86.5, cardio: 20, duration: 1.5, exercises: [{ id: 101, name: '哑铃卧推', sets: '4', reps: '8', weight: '30', completed: true }] }
+        '2025-11-25': { status: 'trained', title: '初始记录', weight: 74.5, waist: 88, cardio: 0, duration: 1.0, exercises: [], note: '' },
+        '2025-11-26': { status: 'trained', title: '恢复训练', weight: 74.0, waist: 87.5, cardio: 30, duration: 1.0, exercises: [], note: '' },
+        '2025-11-27': { status: 'rest', title: '休息日', weight: 73.8, waist: 87, cardio: 0, duration: 0, exercises: [], note: '' },
+        '2025-11-28': { status: 'trained', title: '胸部训练', weight: 73.5, waist: 86.5, cardio: 20, duration: 1.5, exercises: [{ id: 101, name: '哑铃卧推', sets: '4', reps: '8', weight: '30', completed: true }], note: '状态不错！' }
     };
 
     function App() {
@@ -179,7 +179,7 @@
       const [newExReps, setNewExReps] = useState('12');
       const [newExNote, setNewExNote] = useState('');
       const [showAddForm, setShowAddForm] = useState(false);
-      const [editingId, setEditingId] = useState(null); // 新增：正在编辑的动作ID
+      const [editingId, setEditingId] = useState(null); 
       
       const fileInputRef = useRef(null);
 
@@ -198,7 +198,7 @@
       const getDaysInMonth = (date) => ({ daysInMonth: new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate(), firstDay: new Date(date.getFullYear(), date.getMonth(), 1).getDay() });
       const formatDateKey = (date) => date.toISOString().split('T')[0];
       const dateKey = formatDateKey(selectedDate);
-      const currentLog = logs[dateKey] || { status: 'none', title: '', weight: '', waist: '', cardio: '', duration: '', exercises: [] };
+      const currentLog = logs[dateKey] || { status: 'none', title: '', weight: '', waist: '', cardio: '', duration: '', exercises: [], note: '' };
       const updateLog = (field, value) => { setLogs(prev => ({ ...prev, [dateKey]: { ...currentLog, [field]: value } })); };
       const toggleStatus = (targetStatus) => { updateLog('status', currentLog.status === targetStatus ? 'none' : targetStatus); };
 
@@ -248,21 +248,19 @@
         if (!newExName || !newExPart || !newExSets || !newExReps) { alert('请填写完整信息！'); return; }
         
         if (editingId) {
-            // 编辑模式
             setExercises(prev => prev.map(ex => ex.id === editingId ? {
                 ...ex,
                 name: newExName, part: newExPart, maxWeight: newExMaxWeight || '0', sets: newExSets, reps: newExReps, note: newExNote
             } : ex));
             setEditingId(null);
         } else {
-            // 新增模式
             setExercises(prev => [...prev, { id: Date.now(), name: newExName, part: newExPart, maxWeight: newExMaxWeight || '0', sets: newExSets, reps: newExReps, note: newExNote }]);
         }
         setShowAddForm(false); setNewExName(''); setNewExMaxWeight(''); setNewExNote('');
       };
 
       const handleEditExercise = (e, ex) => {
-          e.stopPropagation(); // 阻止触发选择
+          e.stopPropagation(); 
           setNewExName(ex.name);
           setNewExPart(ex.part);
           setNewExMaxWeight(ex.maxWeight);
@@ -274,22 +272,74 @@
       };
 
       const handleDeleteExercise = (e, id) => {
-          e.stopPropagation(); // 阻止触发选择
+          e.stopPropagation(); 
           if(confirm('确定要删除这个动作吗？此操作不可恢复。')) {
               setExercises(prev => prev.filter(ex => ex.id !== id));
-              // 如果删除了选中的动作，也要从选中列表中移除
               setSelectedForSession(prev => prev.filter(sid => sid !== id));
           }
       };
 
       const handleDurationChange = (e) => { const value = parseFloat(e.target.value); updateLog('duration', isNaN(value) ? '' : value); }
-      const handleDragStart = (e, index) => {}; const handleDragOver = (e, index) => {}; const handleDragEnd = () => {};
+      
+      // --- 一键分享文本功能 ---
+      const handleShareText = async () => {
+        const dateStr = selectedDate.toLocaleDateString();
+        const title = currentLog.title || '今日训练';
+        const weight = currentLog.weight ? `⚖️ 体重: ${currentLog.weight}kg` : '';
+        const waist = currentLog.waist ? `📏 腰围: ${currentLog.waist}cm` : '';
+        const cardio = currentLog.cardio ? `🏃‍♂️ 有氧: ${currentLog.cardio}分钟` : '';
+        const duration = currentLog.duration ? `⏱️ 时长: ${currentLog.duration}小时` : '';
+
+        const stats = [weight, waist, cardio, duration].filter(Boolean).join(' | ');
+
+        let exText = '';
+        if (currentLog.exercises && currentLog.exercises.length > 0) {
+            exText = '\n\n📋 今日动作:\n' + currentLog.exercises.map((ex, i) =>
+                `${i + 1}. ${ex.name} - ${ex.sets}组 x ${ex.reps}次 @ ${ex.weight}kg`
+            ).join('\n');
+        } else {
+            exText = '\n\n📋 今日动作: 无记录';
+        }
+
+        const noteText = currentLog.note ? `\n\n💡 训练心得:\n${currentLog.note}` : '';
+
+        const shareText = `🏋️ Gyming 训练日志 | ${dateStr}\n📌 主题: ${title}\n${stats}${exText}${noteText}`;
+
+        // 尝试调用系统原生分享 (适合添加到主屏幕的 PWA 或移动端浏览器)
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: 'Gyming 训练日志',
+                    text: shareText
+                });
+            } catch (err) {
+                // 用户取消分享或发生错误时，回退到剪贴板
+                if (err.name !== 'AbortError') {
+                    copyToClipboard(shareText);
+                }
+            }
+        } else {
+            // 不支持系统分享的设备，直接复制到剪贴板
+            copyToClipboard(shareText);
+        }
+      };
+
+      const copyToClipboard = (text) => {
+          if (navigator.clipboard) {
+              navigator.clipboard.writeText(text).then(() => {
+                  alert('训练日志已复制到剪贴板，快去粘贴分享吧！');
+              }).catch(() => {
+                  alert('复制失败，请手动复制');
+              });
+          }
+      };
 
       const exportData = () => {
         const blob = new Blob([JSON.stringify({ logs, exercises, routines }, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = `gyming_backup_${formatDateKey(new Date())}.json`; a.click(); URL.revokeObjectURL(url);
       };
+      
       const importData = (e) => {
         const file = e.target.files[0]; if (!file) return;
         const reader = new FileReader();
@@ -376,12 +426,22 @@
                       </div>
 
                       <div>
-                        <div className="flex justify-between items-center mb-3"><h3 className="font-bold text-gray-700">今日安排</h3><button onClick={() => setActiveTab('library')} className="text-xs flex items-center gap-1 font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full hover:bg-indigo-100"><Plus className="w-3 h-3"/> 添加动作</button></div>
+                        {/* 新增了分享按钮 */}
+                        <div className="flex justify-between items-center mb-3">
+                            <h3 className="font-bold text-gray-700">今日安排</h3>
+                            <div className="flex gap-2">
+                                <button onClick={handleShareText} className="text-[10px] flex items-center gap-1 font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full hover:bg-emerald-100 transition-colors active:scale-95"><Share className="w-3 h-3"/> 分享/复制</button>
+                                <button onClick={() => setActiveTab('library')} className="text-[10px] flex items-center gap-1 font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition-colors active:scale-95"><Plus className="w-3 h-3"/> 添加动作</button>
+                            </div>
+                        </div>
+                        
                         {currentLog.exercises && currentLog.exercises.length > 0 ? (
                           <div className="space-y-3">{currentLog.exercises.map((item, index) => (<div key={index} className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm hover:shadow-md transition-all"><div className="flex justify-between items-start mb-2"><div className="flex items-center gap-2"><div className="cursor-grab text-gray-300"><GripVertical className="w-4 h-4"/></div><span className="font-bold text-gray-800">{item.name}</span></div><button onClick={() => {const ex = [...currentLog.exercises]; ex.splice(index,1); updateLog('exercises', ex);}} className="text-gray-300 hover:text-red-500"><X className="w-4 h-4"/></button></div><div className="grid grid-cols-3 gap-2 text-sm pl-6">{['sets', 'reps', 'weight'].map(field => (<div key={field} className="bg-gray-50 rounded p-1.5"><span className="text-[10px] text-gray-400 capitalize">{field}</span><input type={field === 'weight' || field === 'reps' ? 'number' : 'text'} step={field === 'weight' ? '0.1' : '1'} className="bg-transparent font-bold w-full outline-none" value={item[field]} onChange={(e) => {const ex = [...currentLog.exercises]; ex[index][field] = e.target.value; updateLog('exercises', ex);}} /></div>))}</div></div>))}</div>
                         ) : <div className="text-center py-8 text-gray-400 text-sm bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">点击上方按钮添加</div>}
                       </div>
-                      <textarea placeholder="训练心得..." className="w-full text-sm bg-gray-50 p-3 rounded-xl outline-none h-24 border border-transparent focus:bg-white focus:border-gray-200" />
+                      
+                      {/* 修复了心得无法绑定的问题 */}
+                      <textarea placeholder="训练心得..." value={currentLog.note || ''} onChange={(e) => updateLog('note', e.target.value)} className="w-full text-sm bg-gray-50 p-3 rounded-xl outline-none h-24 border border-transparent focus:bg-white focus:border-gray-200" />
                     </div>
                   </div>
                 </div>
@@ -452,7 +512,6 @@
                                           <div><h3 className={`font-bold ${isSelected ? 'text-indigo-900' : 'text-gray-800'}`}>{ex.name}</h3><span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{ex.sets}x{ex.reps}</span></div>
                                       </div>
                                       
-                                      {/* 编辑/删除按钮区 (阻止冒泡) */}
                                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                                           <button onClick={(e) => handleEditExercise(e, ex)} className="p-2 text-gray-300 hover:text-blue-500 bg-gray-50 rounded-lg"><Pencil className="w-4 h-4"/></button>
                                           <button onClick={(e) => handleDeleteExercise(e, ex.id)} className="p-2 text-gray-300 hover:text-red-500 bg-gray-50 rounded-lg"><Trash2 className="w-4 h-4"/></button>
@@ -480,9 +539,7 @@
               {activeTab === 'stats' && (
                 <div className="p-4 space-y-6">
                   <h2 className="text-2xl font-bold text-gray-800">训练洞察</h2>
-                  {/* 体重趋势 */}
                   <TrendChart data={chartData.weights} labels={chartData.dates} label="体重趋势 (Weight / KG)" color="#3b82f6" />
-                  {/* 腰围趋势 (替换了原有有氧图表) */}
                   <TrendChart data={chartData.waists} labels={chartData.dates} label="腰围尺寸 (Waist / CM)" color="#f97316" />
                   
                   <div className="bg-gray-800 text-white p-5 rounded-2xl shadow-lg mt-8">
